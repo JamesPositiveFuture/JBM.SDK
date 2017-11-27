@@ -89,6 +89,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>JBM_SDK_PLATFORM_32BITS;JBM_SDK_MEMORY_BUILD;WIN32;_DEBUG;JBMSDKMEMORY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -102,6 +103,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>JBM_SDK_PLATFORM_64BITS;JBM_SDK_MEMORY_BUILD;_DEBUG;JBMSDKMEMORY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -117,6 +119,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>JBM_SDK_PLATFORM_32BITS;JBM_SDK_MEMORY_BUILD;WIN32;NDEBUG;JBMSDKMEMORY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
+      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -134,6 +138,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>JBM_SDK_PLATFORM_64BITS;JBM_SDK_MEMORY_BUILD;NDEBUG;JBMSDKMEMORY_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RemoveUnreferencedCodeData>false</RemoveUnreferencedCodeData>
+      <WholeProgramOptimization>false</WholeProgramOptimization>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -149,7 +155,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CAllocationNode.cpp" />
+    <ClCompile Include="CBaseAllocator.cpp" />
+    <ClCompile Include="CException.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="IBaseAllocator.cpp" />
+    <ClCompile Include="IObject.cpp" />
     <ClCompile Include="JBM.SDK.Memory.cpp" />
     <ClCompile Include="SourceCodeInfo.cpp" />
     <ClCompile Include="stdafx.cpp">

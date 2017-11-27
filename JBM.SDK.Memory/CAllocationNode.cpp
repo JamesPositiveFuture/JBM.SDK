@@ -25,8 +25,8 @@ namespace JBM
 		AllocationType enAllocationType, SizeType nObjectSize, SizeType nObjectCount, PFN_DestructorStubFunction pfnFunction,
 		const SourceCodeInfo * pSourceInfo, IBaseAllocator * pAllocator) throw() : m_lpBufferAddress(lpAddress),
 		m_nBufferSize(nAllocationSize), m_enAllocationType(enAllocationType),
-		m_nObjectSize(0), m_nObjectCount(0),
-		m_pfnDestructor(nullptr), m_udtSourceInfo(), m_pAllocator(pAllocator),
+		m_nObjectSize(nObjectSize), m_nObjectCount(nObjectCount),
+		m_pfnDestructor(pfnFunction), m_udtSourceInfo(), m_pAllocator(pAllocator),
 		m_pNextAllocation(nullptr), m_pPreviousAllocation(nullptr)
 	{
 	}

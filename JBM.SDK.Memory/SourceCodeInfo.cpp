@@ -28,6 +28,14 @@ namespace JBM
 	{
 	}
 
+	SourceCodeInfo::SourceCodeInfo(SourceCodeInfo && info) throw() : m_pstrFunctionName(info.m_pstrFunctionName),
+		m_pstrFileName(info.m_pstrFileName), m_nLineNumber(info.m_nLineNumber)
+	{
+		info.SetFunctionName(nullptr);
+		info.SetFileName(nullptr);
+		info.SetLineNumber(0);
+	}
+
 	SourceCodeInfo::~SourceCodeInfo() throw()
 	{
 	}

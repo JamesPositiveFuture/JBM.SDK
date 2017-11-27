@@ -27,6 +27,9 @@
 #define JBM_SDK_MEMORY_CLASS		JBM_SDK_MEMORY_EXPORT
 #define JBM_SDK_MEMORY_FUNCTION		JBM_SDK_MEMORY_EXPORT
 
+// Disable MSVC++ warnings
+#pragma warning(disable:4290)
+
 #include <pshpack1.h>
 
 namespace JBM
@@ -50,8 +53,8 @@ namespace JBM
 	typedef wchar_t UniChar, UnicodeChar;
 
 #if defined(JBM_SDK_PLATFORM_64BITS)
-	typedef unsigned __int64 SizeType;
-	typedef __int64 SignedSizeType;
+	typedef UInt64 SizeType;
+	typedef Int64 SignedSizeType;
 
 	#define JBM_SDK_CALL __fastcall
 
@@ -62,7 +65,7 @@ namespace JBM
 	#define JBM_SDK_CALL __stdcall
 #endif
 
-	typedef void (JBM_SDK_CALL * PFN_DestructorStubFunction)(void * lpObject);
+	typedef void (JBM_SDK_CALL * PFN_DestructorStubFunction)(void * lpObject, SizeType nObjectCount);
 
 	enum AllocationType : UShort16
 	{
@@ -105,6 +108,10 @@ namespace JBM
 		SizeType m_nLineNumber;
 	};
 
+	// Forward declare IObject
+
+	class IObject;
+
 	// Forward declare IBaseAllocator
 
 	class IBaseAllocator;
@@ -125,7 +132,7 @@ namespace JBM
 		inline AllocationType GetAllocationType() const throw() { return m_enAllocationType; }
 		inline SizeType GetObjectSize() const throw() { return m_nObjectSize; }
 		inline SizeType GetObjectCount() const throw() { return m_nObjectCount; }
-		inline PFN_DestructorStubFunction GetDestsructor() const throw() { return m_pfnDestructor; }
+		inline PFN_DestructorStubFunction GetDestructor() const throw() { return m_pfnDestructor; }
 		inline SourceCodeInfo GetSourceInfo() const throw() { return m_udtSourceInfo; }
 		inline IBaseAllocator * GetAllocator() const throw() { return m_pAllocator; }
 		inline CAllocationNode * GetNextAllocation() const throw() { return m_pNextAllocation; }
@@ -154,6 +161,320 @@ namespace JBM
 		CAllocationNode(const CAllocationNode & node) throw();
 		void operator= (const CAllocationNode & node) throw();
 	};
+
+	class JBM_SDK_MEMORY_CLASS IObject
+	{
+	public:
+		virtual ~IObject() throw();
+
+		virtual void DeleteThisObject() throw() = 0;
+	};
+
+	class JBM_SDK_MEMORY_CLASS IBaseAllocator : public IObject
+	{
+	public:
+		virtual ~IBaseAllocator() throw();
+
+		virtual void * BasicAllocate(SizeType nAllocSize, bool bZeroMemory) throw() = 0;
+		virtual bool BasicFree(void * lpBuffer) throw() = 0;
+
+		virtual CAllocationNode * AllocateValue(SizeType nValueSize, const SourceCodeInfo * pSourceInfo) throw() = 0;
+		virtual CAllocationNode * AllocateValueArray(SizeType nObjectSize, SizeType nObjectCount, const SourceCodeInfo * pSourceInfo) throw() = 0;
+		virtual CAllocationNode * AllocateObject(SizeType nObjectSize, PFN_DestructorStubFunction pfnDestructor, const SourceCodeInfo * pSourceInfo) throw() = 0;
+		virtual CAllocationNode * AllocateObjectArray(SizeType nObjectSize, SizeType nObjectCount, PFN_DestructorStubFunction pfnDestructor, const SourceCodeInfo * pInfo) throw() = 0;
+
+		virtual void AddNode(CAllocationNode * pNode) throw() = 0;
+		virtual void RemoveNode(CAllocationNode * pNode) throw() = 0;
+
+		inline void DeleteNode(CAllocationNode * pNode) throw()
+		{
+			RemoveNode(pNode);
+			BasicFree(pNode);
+		}
+
+		static inline CAllocationNode * BufferToNode(void * lpBuffer) throw()
+		{
+			CAllocationNode * pNode = reinterpret_cast<CAllocationNode *>(lpBuffer);
+			--pNode;
+
+			return pNode;
+		}
+
+		static inline void * NodeToBuffer(CAllocationNode * pNode) throw()
+		{
+			return pNode + 1;
+		}
+	};
+
+	class JBM_SDK_MEMORY_CLASS CException : public IObject
+	{
+	public:
+		CException() throw();
+		CException(const AnsiChar * pstrFunctionName, const AnsiChar * pstrFileName, SizeType nLineNumber,
+			SizeType nErrorCode) throw();
+		CException(const SourceCodeInfo & udtInfo, SizeType nErrorCode) throw();
+		CException(const CException & ex) throw();
+		CException(CException && ex) throw();
+		virtual ~CException() throw();
+
+		// IObject
+		virtual void DeleteThisObject() throw();
+
+		// Member Functions
+		inline const SourceCodeInfo & GetSourceInfo() const throw() { return m_udtSourceInfo; }
+		inline SizeType GetErrorCode() const throw() { return m_nErrorCode; }
+
+		const CException & operator= (const CException & ex) throw();
+
+	protected:
+		SourceCodeInfo m_udtSourceInfo;
+		SizeType m_nErrorCode;
+	};
+
+	class JBM_SDK_MEMORY_CLASS CBaseAllocator : public IBaseAllocator
+	{
+	public:
+		// Construction/Destruction
+		CBaseAllocator() throw();
+		CBaseAllocator(void * hHeapHandle) throw();
+		virtual ~CBaseAllocator() throw();
+
+		// IObject
+		virtual void DeleteThisObject() throw();
+
+		// IBaseAllocator
+		virtual void * BasicAllocate(SizeType nAllocSize, bool bZeroMemory) throw();
+		virtual bool BasicFree(void * lpBuffer) throw();
+
+		virtual CAllocationNode * AllocateValue(SizeType nValueSize, const SourceCodeInfo * pSourceInfo) throw();
+		virtual CAllocationNode * AllocateValueArray(SizeType nObjectSize, SizeType nObjectCount, const SourceCodeInfo * pSourceInfo) throw();
+		virtual CAllocationNode * AllocateObject(SizeType nObjectSize, PFN_DestructorStubFunction pfnDestructor, const SourceCodeInfo * pSourceInfo) throw();
+		virtual CAllocationNode * AllocateObjectArray(SizeType nObjectSize, SizeType nObjectCount, PFN_DestructorStubFunction pfnDestructor, const SourceCodeInfo * pInfo) throw();
+
+		virtual void AddNode(CAllocationNode * pNode) throw();
+		virtual void RemoveNode(CAllocationNode * pNode) throw();
+	protected:
+		CAllocationNode * m_pFirstAllocation;
+		CAllocationNode * m_pLastAllocation;
+		SizeType m_nAllocationCount;
+
+		void * m_hHeapHandle;
+
+	private:
+		// Prevent usage (empty implementation)
+		CBaseAllocator(const CBaseAllocator &) throw();
+		void operator= (const CBaseAllocator & alloc) throw();
+	};
+}
+
+inline void * operator new(JBM::SizeType nSize, void * lpAddress) throw()
+{
+	return lpAddress;
+}
+
+inline void operator delete(void * lpBuffer, void * lpAddress) throw()
+{
+}
+
+inline void * operator new[](JBM::SizeType nSize, void * lpAddress) throw()
+{
+	return lpAddress;
+}
+
+inline void operator delete[](void * lpBuffer, void * lpAddress) throw()
+{
+}
+
+template <typename Type> Type * NewValue(JBM::IBaseAllocator * pAllocator) throw(JBM::CException)
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateValue(sizeof(Type), &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObject = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		new (pObject) Type();
+
+		return pObject;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> Type * NewValue(JBM::IBaseAllocator * pAllocator, const Type & value) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateValue(sizeof(Type), &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObject = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		new (pObject) Type(value);
+
+		return pObject;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> Type * NewValueArray(JBM::IBaseAllocator * pAllocator, JBM::SizeType nCount) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateValueArray(sizeof(Type), nCount, &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObject = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		new (pObject) Type(value);
+
+		return pObject;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> Type * NewValueArrayInitialize(JBM::IBaseAllocator * pAllocator, JBM::SizeType nCount, const Type * pSourceArray) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateValueArray(sizeof(Type), nCount, &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObjectArray = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		for (SizeType x = 0; x < nCount; ++x)
+		{
+			new (&pObjectArray[x]) Type(pSourceArray[x]);
+		}
+
+		return pObjectArray;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> void JBM_SDK_CALL DestructorStubFunction(void * lpBuffer, JBM::SizeType nObjectCount) throw()
+{
+	Type * pObjectArray = reinterpret_cast<Type *>(lpBuffer);
+
+	if (nObjectCount > 1)
+	{
+		for (SizeType x = nObjectCount; x != 0; --x)
+		{
+			pObjectArray[x - 1].~Type();
+		}
+	}
+	else if (nObjectCount == 1)
+	{
+		pObjectArray[0].~Type();
+	}
+}
+
+template <typename Type> Type * NewObject(JBM::IBaseAllocator * pAllocator, const Type & value) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateObject(sizeof(Type), &DestructorStubFunction<Type>, &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObject = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		new (pObject) Type(value);
+
+		return pObject;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> Type * NewObjectArray(JBM::IBaseAllocator * pAllocator, JBM::SizeType nCount) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateObjectArray(sizeof(Type), nCount, &DestructorStubFunction<Type>, &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObjectArray = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		for (SizeType x = 0; x < nCount; ++x)
+		{
+			new (&pObjectArray[x]) Type();
+		}
+
+		return pObjectArray;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> Type * NewObjectArrayInitialize(JBM::IBaseAllocator * pAllocator, JBM::SizeType nCount, const Type * pSourceArray) throw()
+{
+	SourceCodeInfo udtInfo(__FUNCTION__, __FILE__, __LINE__);
+
+	CAllocationNode * pNode = pAllocator->AllocateObjectArray(sizeof(Type), nCount, &DestructorStubFunction<Type>, &udtInfo);
+
+	if (pNode != nullptr)
+	{
+		Type * pObjectArray = reinterpret_cast<Type *>(pNode->GetBufferAddress());
+
+		for (SizeType x = 0; x < nCount; ++x)
+		{
+			new (&pObjectArray[x]) Type(pSourceArray[x]);
+		}
+
+		return pObjectArray;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+template <typename Type> void Delete(Type * pObject) throw()
+{
+	if (pObject != nullptr)
+	{
+		CAllocationNode * pNode = IBaseAllocator::BufferToNode(pObject);
+
+		IBaseAllocator * pAllocator = pNode->GetAllocator();
+
+		pAllocator->RemoveNode(pNode);
+
+		AllocationType enType = pNode->GetAllocationType();
+
+		if (enType == AllocationType::AllocationTypeObject || enType == AllocationType::AllocationTypeObjectArray)
+		{
+			PFN_DestructorStubFunction pfnDestructor = pNode->GetDestructor();
+
+			if (pfnDestructor != nullptr)
+			{
+				(*pfnDestructor)(pNode->GetBufferAddress(), pNode->GetObjectCount());
+			}
+		}
+
+		pAllocator->BasicFree(pNode);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
